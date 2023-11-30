@@ -1,50 +1,35 @@
-#include "IRremote.h"
+#include <IRremote.hpp>
 #include "pitches.h"
+#include <Servo.h>
+#define IR_RECEIVE_PIN 2
+#define BUZZER_PIN 9
+#define SERVO_PIN 9
 
-int receiver = 11; // Signal Pin of IR receiver to Arduino Digital Pin 11
-int buzzerPin = 3;
-
-/*-----( Declare objects )-----*/
-IRrecv irrecv(receiver);     // create instance of 'irrecv'
-//vairable uses to store the last decodedRawData
-uint32_t last_decodedRawData = 0;
-/*-----( Function )-----*/
-void translateIR() // takes action based on IR code received
+Servo servo;
+void setup()
 {
-  // Check if it is a repeat IR code 
-  if (irrecv.decodedIRData.flags)
-  {
-    //set the current decodedRawData to the last decodedRawData 
-    irrecv.decodedIRData.decodedRawData = last_decodedRawData;
-    Serial.println("REPEAT!");
-  } else
-  {
-    //output the IR code on the serial monitor
-    Serial.print("IR code:0x");
-    Serial.println(irrecv.decodedIRData.decodedRawData, HEX);
+  IrReceiver.begin(IR_RECEIVE_PIN, ENABLE_LED_FEEDBACK); // Start the receiver
+  servo.attach(SERVO_PIN);
+}
+
+boolean switchStatus;
+
+void loop() {
+  if (IrReceiver.decode()) {
+      Serial.println(IrReceiver.decodedIRData.decodedRawData, HEX); // Print "old" raw data
+      // USE NEW 3.x FUNCTIONS
+      IrReceiver.printIRResultShort(&Serial); // Print complete received data in one line
+      IrReceiver.printIRSendUsage(&Serial);   // Print the statement required to send this data
+      if (switchStatus){
+        tone(BUZZER_PIN, NOTE_B4, 250);
+        servo.write(180);
+        switchStatus = false;
+      } else {
+        tone(BUZZER_PIN, NOTE_B6, 250);
+        servo.write(0);
+        switchStatus = true;
+      }
+      delay(2000);
+      IrReceiver.resume(); // Enable receiving of the next value
   }
-  //map the IR code to the remote key
-  tone(buzzerPin, NOTE_C5, 500);
-  //store the last decodedRawData
-  last_decodedRawData = irrecv.decodedIRData.decodedRawData;
-  delay(500); // Do not get immediate repeat
-} //END translateIR
-
-void setup()   /*----( SETUP: RUNS ONCE )----*/
-{
-  Serial.begin(9600);
-  Serial.println("IR Receiver Button Decode");
-  irrecv.enableIRIn(); // Start the receiver
-  pinMode(buzzerPin, OUTPUT);
-
-}/*--(end setup )---*/
-
-
-void loop()   /*----( LOOP: RUNS CONSTANTLY )----*/
-{
-  if (irrecv.decode()) // have we received an IR signal?
-  {
-    translateIR();
-    irrecv.resume(); // receive the next value
-  }
-}/* --(end main loop )-- */
+}
